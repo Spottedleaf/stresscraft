@@ -2,7 +2,6 @@ package dev.cubxity.tools.stresscraft.data
 
 import org.geysermc.mcprotocollib.protocol.MinecraftProtocol
 import org.geysermc.mcprotocollib.protocol.data.game.ClientCommand
-import org.geysermc.mcprotocollib.protocol.data.game.ResourcePackStatus
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundLoginPacket
 import org.geysermc.mcprotocollib.protocol.packet.common.clientbound.ClientboundResourcePackPushPacket
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundRespawnPacket
@@ -18,9 +17,9 @@ import org.geysermc.mcprotocollib.network.Session
 import org.geysermc.mcprotocollib.network.event.session.DisconnectedEvent
 import org.geysermc.mcprotocollib.network.event.session.SessionAdapter
 import org.geysermc.mcprotocollib.network.packet.Packet
-import org.geysermc.mcprotocollib.network.tcp.TcpClientSession
 import dev.cubxity.tools.stresscraft.StressCraft
 import dev.cubxity.tools.stresscraft.util.ServerTimer
+import org.geysermc.mcprotocollib.network.factory.ClientNetworkSessionFactory
 
 class StressCraftSession(private val app: StressCraft) : SessionAdapter() {
     private var wasAlive = false
@@ -37,7 +36,10 @@ class StressCraftSession(private val app: StressCraft) : SessionAdapter() {
 
     fun connect(name: String) {
         val protocol = MinecraftProtocol(name)
-        val session = TcpClientSession(app.host, app.port, protocol)
+        val session = ClientNetworkSessionFactory.factory()
+            .setAddress(app.host, app.port)
+            .setProtocol(protocol)
+            .create()
 
         session.addListener(this)
 
@@ -70,7 +72,7 @@ class StressCraftSession(private val app: StressCraft) : SessionAdapter() {
                 }
             }
             is ClientboundPlayerPositionPacket -> {
-                session.send(ServerboundAcceptTeleportationPacket(packet.teleportId))
+                session.send(ServerboundAcceptTeleportationPacket(packet.id))
             }
             is ClientboundLevelChunkWithLightPacket -> {
                 chunks.add(computeKey(packet.x, packet.z))
@@ -87,7 +89,7 @@ class StressCraftSession(private val app: StressCraft) : SessionAdapter() {
                 previousChunkCount = size
             }
             is ClientboundSetTimePacket -> {
-                timer.onWorldTimeUpdate(packet.time)
+                timer.onWorldTimeUpdate(packet.gameTime)
             }
             is ClientboundResourcePackPushPacket -> {
                 app.options.acceptResourcePacks
